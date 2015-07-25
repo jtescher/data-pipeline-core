@@ -30,3 +30,12 @@ CREATE TABLE reports.line_items (
     PRIMARY KEY (order_id, id)
 );
 ```
+
+## Add kafka topic
+
+1. Start the Kafka server `kafka-server-start.sh /usr/local/etc/kafka/server.properties`
+1. Create a topic for the report model
+
+```bash
+kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic order-topic
+```
