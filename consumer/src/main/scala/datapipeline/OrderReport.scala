@@ -9,10 +9,15 @@ import org.apache.spark.SparkConf
 import play.api.libs.json.Json
 
 object OrderReport {
-  def main(args: Array[String]): Unit = {
-    implicit val lineItemFormat = Json.format[LineItem]
-    implicit val orderFormat = Json.format[Order]
 
+  // Model classes
+  case class Order(id: UUID, lineItems: List[LineItem])
+  case class LineItem(id: UUID, orderId: UUID, amount: String, currencyCode: String)
+  implicit val lineItemFormat = Json.format[LineItem]
+  implicit val orderFormat = Json.format[Order]
+
+  // Consumer job
+  def main(args: Array[String]): Unit = {
     val config = ConfigFactory.load()
     val kafkaZookeeperUrl = config.getString("kafka.zookeeper.url")
     val kafkaGroupId = config.getString("kafka.groupId")
@@ -25,7 +30,7 @@ object OrderReport {
     ssc.checkpoint("checkpoint")
 
     val orderStream = KafkaUtils.createStream(ssc, kafkaZookeeperUrl, kafkaGroupId, Map("order-topic" -> 1)).map(_._2)
-    val lineItems = orderStream.map(Json.parse(_).as[Order])flatMap(_.lineItems)
+    val lineItems = orderStream.flatMap(Json.parse(_).asOpt[Order]).flatMap(_.lineItems)
     // Store line items
     val lineItemTotals = lineItems.map(lineItem => (lineItem.orderId, lineItem.amount.toFloat))
       .reduceByKeyAndWindow(_ + _, _ - _, Seconds(30), Seconds(10))
@@ -37,6 +42,3 @@ object OrderReport {
   }
 }
 
-// Model classes
-case class Order(id: UUID, lineItems: List[LineItem])
-case class LineItem(id: UUID, orderId: UUID, amount: String, currencyCode: String)
