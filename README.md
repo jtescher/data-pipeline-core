@@ -29,6 +29,11 @@ CREATE TABLE reports.line_items (
     currency_code text,
     PRIMARY KEY (order_id, id)
 );
+CREATE TABLE reports.event_totals (
+    id bigint,
+    total decimal,
+    PRIMARY KEY (id)
+);
 ```
 
 ## Add kafka topic

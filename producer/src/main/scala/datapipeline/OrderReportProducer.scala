@@ -39,7 +39,7 @@ object OrderReportProducer {
             currencyCode = "USD"
           )
         }
-        val order = Order(id = orderId, lineItems = lineItems.toList)
+        val order = Order(id = orderId, eventId = Random.nextInt(10) + 1, lineItems = lineItems.toList)
 
         val message = new ProducerRecord[String, String](kafkaTopic, null, Json.toJson(order).toString())
         producer.send(message)
@@ -51,5 +51,5 @@ object OrderReportProducer {
 }
 
 // Model classes
-case class Order(id: UUID, lineItems: List[LineItem])
+case class Order(id: UUID, eventId: Int, lineItems: List[LineItem])
 case class LineItem(id: UUID, orderId: UUID, amount: String, currencyCode: String)
