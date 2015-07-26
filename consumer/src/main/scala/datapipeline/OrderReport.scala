@@ -1,13 +1,10 @@
 package datapipeline
 
 import java.util.UUID
-
-import com.typesafe.config.ConfigFactory
-import org.apache.spark.streaming.{Seconds, StreamingContext}
-import org.apache.spark.streaming.kafka.KafkaUtils
 import com.datastax.spark.connector.streaming._
-import org.apache.spark.SparkConf
+import datapipeline.config.{SparkConfig, KafkaConfig}
 import play.api.libs.json.Json
+import SparkConfig.streamingContext
 
 object OrderReport {
 
@@ -19,20 +16,13 @@ object OrderReport {
   implicit val lineItemFormat = Json.format[LineItem]
   implicit val orderFormat = Json.format[Order]
 
-  // Consumer job
   def main(args: Array[String]): Unit = {
-    val config = ConfigFactory.load()
-    val kafkaZookeeperUrl = config.getString("kafka.zookeeper.url")
-    val kafkaGroupId = config.getString("kafka.groupId")
-    val cassandraHost = config.getString("cassandra.host")
-    val sparkConf = new SparkConf(true)
-      .setMaster(config.getString("spark.master.url"))
-      .set("spark.cassandra.connection.host", cassandraHost)
-      .setAppName("OrderReport")
-    val ssc = new StreamingContext(sparkConf, Seconds(2))
-    ssc.checkpoint("checkpoint")
 
-    val ordersJson = KafkaUtils.createStream(ssc, kafkaZookeeperUrl, kafkaGroupId, Map("order-topic" -> 1)).map(_._2)
+    // Checkpoint
+    streamingContext.checkpoint("checkpoint")
+
+    // Create order stream from kafka topic
+    val ordersJson = KafkaConfig.createStream(streamingContext, topics = Map("order-topic" -> 1))
     val orders = ordersJson.flatMap(Json.parse(_).asOpt[Order])
 
     // Save all line items as they stream in
@@ -43,8 +33,9 @@ object OrderReport {
     val eventTotals = orders.map(order => (order.eventId, order.lineItems.map(_.amount.toFloat).sum)).reduceByKey(_ + _)
     eventTotals.saveToCassandra("reports", "event_totals")
 
-    ssc.start()
-    ssc.awaitTermination()
+    // Start streaming
+    streamingContext.start()
+    streamingContext.awaitTermination()
   }
-}
 
+}
