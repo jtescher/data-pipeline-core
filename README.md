@@ -30,7 +30,7 @@ CREATE TABLE reports.line_items (
     PRIMARY KEY (order_id, id)
 );
 CREATE TABLE reports.event_totals (
-    id bigint,
+    id int,
     total decimal,
     PRIMARY KEY (id)
 );
